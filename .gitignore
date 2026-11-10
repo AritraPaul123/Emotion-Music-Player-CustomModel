@@ -15,3 +15,7 @@ config.py
 
 # Misc
 .DS_Store
+
+# Dataset and cache
+dataset/
+.cache

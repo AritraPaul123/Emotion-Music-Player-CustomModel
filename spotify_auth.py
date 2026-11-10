@@ -8,6 +8,11 @@ class SpotifyAuthManager:
         try:
             # First try to read from config.py
             from config import SPOTIFY_CLIENT_ID, SPOTIFY_CLIENT_SECRET
+            try:
+                from config import SPOTIFY_REDIRECT_URI
+                self.redirect_uri = SPOTIFY_REDIRECT_URI
+            except ImportError:
+                self.redirect_uri = "http://127.0.0.1:8888"
             self.client_id = SPOTIFY_CLIENT_ID
             self.client_secret = SPOTIFY_CLIENT_SECRET
         except ImportError:
@@ -15,6 +20,7 @@ class SpotifyAuthManager:
             import os
             self.client_id = os.getenv('SPOTIFY_CLIENT_ID')
             self.client_secret = os.getenv('SPOTIFY_CLIENT_SECRET')
+            self.redirect_uri = os.getenv('SPOTIFY_REDIRECT_URI', 'http://127.0.0.1:8888')
             
             if not self.client_id or not self.client_secret:
                 print("\nPlease set up your Spotify credentials by either:")
@@ -23,7 +29,6 @@ class SpotifyAuthManager:
                 print("2. Setting environment variables SPOTIFY_CLIENT_ID and SPOTIFY_CLIENT_SECRET\n")
                 raise ValueError("Missing Spotify credentials")
         
-        self.redirect_uri = "http://127.0.0.1:8888"
         self.scope = "user-modify-playback-state user-read-playback-state"
         
         self.sp: Optional[spotipy.Spotify] = None

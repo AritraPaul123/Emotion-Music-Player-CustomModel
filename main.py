@@ -11,7 +11,20 @@ import time
 from spotify_auth import SpotifyAuthManager
 from custom_model import EmotionCNN
 
-CLASS_NAMES = ['neutral', 'happy', 'surprise', 'sad', 'angry']
+EMOTION_COLORS = {
+    'happy': '#00D26A',      # Vibrant green
+    'sad': '#4A90E2',        # Soft blue
+    'angry': '#FF4757',      # Bright red
+    'surprise': '#FFA502',   # Bright orange
+    'neutral': '#A4B0BE'     # Clean cool gray
+}
+EMOTION_EMOJIS = {
+    'happy': '😊 Happy',
+    'sad': '😢 Sad',
+    'angry': '😠 Angry',
+    'surprise': '😲 Surprised',
+    'neutral': '😐 Neutral'
+}
 
 class EmotionMusicPlayer(ctk.CTk):
     def __init__(self):
@@ -63,31 +76,55 @@ class EmotionMusicPlayer(ctk.CTk):
     
     def create_gui(self):
         """Create the GUI elements"""
+        # Configure grid for main window
+        self.grid_columnconfigure(0, weight=1)
+        self.grid_rowconfigure(0, weight=1)
+        self.grid_rowconfigure(1, weight=0)
+        self.grid_rowconfigure(2, weight=0)
+        
         # Camera frame
-        self.camera_frame = ctk.CTkFrame(self)
-        self.camera_frame.pack(pady=20, padx=20, fill="both", expand=True)
+        self.camera_frame = ctk.CTkFrame(self, corner_radius=15)
+        self.camera_frame.pack(pady=(15, 10), padx=20, fill="both", expand=True)
         
         self.camera_label = ctk.CTkLabel(self.camera_frame, text="")
-        self.camera_label.pack(pady=10)
+        self.camera_label.pack(pady=10, padx=10, expand=True)
         
-        # Emotion display
-        self.emotion_frame = ctk.CTkFrame(self)
-        self.emotion_frame.pack(pady=20, padx=20, fill="x")
+        # Live Emotion Badge directly under the webcam playback
+        self.emotion_card = ctk.CTkFrame(self, fg_color="#1e1e24", corner_radius=12, border_width=2, border_color="#3a3a4c")
+        self.emotion_card.pack(pady=(0, 15), padx=20, fill="x")
+        
+        self.emotion_title_label = ctk.CTkLabel(
+            self.emotion_card,
+            text="LIVE EMOTION",
+            font=("Helvetica", 11, "bold"),
+            text_color="#9e9eb3"
+        )
+        self.emotion_title_label.pack(pady=(8, 0))
         
         self.emotion_label = ctk.CTkLabel(
-            self.emotion_frame, 
-            text="Detected Emotion: None (Custom CNN)",
-            font=("Helvetica", 16)
+            self.emotion_card, 
+            text="Analyzing...",
+            font=("Helvetica", 24, "bold"),
+            text_color="#00D26A"
         )
-        self.emotion_label.pack(pady=10)
+        self.emotion_label.pack(pady=(2, 4))
+        
+        self.music_status_label = ctk.CTkLabel(
+            self.emotion_card,
+            text="🎵 Music syncs on steady expression",
+            font=("Helvetica", 12),
+            text_color="#7a7a90"
+        )
+        self.music_status_label.pack(pady=(0, 8))
         
         # Control buttons
-        self.control_frame = ctk.CTkFrame(self)
-        self.control_frame.pack(pady=20, padx=20, fill="x")
+        self.control_frame = ctk.CTkFrame(self, fg_color="transparent")
+        self.control_frame.pack(pady=(0, 15), padx=20, fill="x")
         
         self.toggle_btn = ctk.CTkButton(
             self.control_frame,
-            text="Stop",
+            text="Stop Camera",
+            font=("Helvetica", 13, "bold"),
             command=self.toggle_camera
         )
         self.toggle_btn.pack(side="left", padx=10)
@@ -95,6 +132,9 @@ class EmotionMusicPlayer(ctk.CTk):
         self.quit_btn = ctk.CTkButton(
             self.control_frame,
             text="Quit",
+            font=("Helvetica", 13, "bold"),
+            fg_color="#e03131",
+            hover_color="#c92a2a",
             command=self.quit_app
         )
         self.quit_btn.pack(side="right", padx=10)
@@ -130,15 +170,23 @@ class EmotionMusicPlayer(ctk.CTk):
         ret, frame = self.camera.read()
         if ret:
             try:
+                # Continuous real-time detection on every camera frame
                 emotion = self.detect_emotion(frame)
                 
+                # Dynamically update the displayed emotion badge on every frame
+                display_text = EMOTION_EMOJIS.get(emotion.lower(), emotion.capitalize())
+                badge_color = EMOTION_COLORS.get(emotion.lower(), "#00D26A")
+                self.emotion_label.configure(text=display_text, text_color=badge_color)
+                self.emotion_card.configure(border_color=badge_color)
+                
+                # Music playback change triggers only after cooldown
                 current_time = time.time()
                 if (emotion != self.current_emotion and 
                     current_time - self.last_emotion_change > self.emotion_cooldown):
                     self.current_emotion = emotion
                     self.last_emotion_change = current_time
-                    self.emotion_label.configure(text=f"Detected Emotion: {emotion} (Custom CNN)")
-                    print(f"Detected Emotion: {emotion}. Triggering Spotify playback...")
+                    self.music_status_label.configure(text=f"🎶 Now Playing music for: {emotion.capitalize()}")
+                    print(f"Triggering Spotify playback for new emotion: {emotion}...")
                     threading.Thread(
                         target=self.spotify.play_tracks_by_mood,
                         args=(emotion,),
